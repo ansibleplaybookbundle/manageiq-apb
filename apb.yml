@@ -1,6 +1,6 @@
 id: ac5e71fe-b43d-4114-8172-640fd75b8ffd
 name: manageiq-apb
-image: cfchase/manageiq-apb
+image: ansibleplaybookbundle/manageiq-apb
 description: ManageIQ
 bindable: False
 async: optional
