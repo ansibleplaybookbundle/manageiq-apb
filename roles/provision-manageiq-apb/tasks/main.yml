@@ -1,0 +1,244 @@
+#############################################################################
+# Provision manageiq-apb
+# Provions ManageIQ - an open source management platform for Hybrid IT
+#############################################################################
+
+
+- name: create app pvc
+  k8s_v1_persistent_volume_claim:
+    name: manageiq-app #TODO: manageiq-app-pvc
+    namespace: '{{ namespace }}'
+    state: present
+    access_modes:
+      - ReadWriteOnce
+    resources_requests:
+      storage: '{{ manage_iq_app_volume_size }}'
+
+- name: create postgresql pvc
+  k8s_v1_persistent_volume_claim:
+    name: manageiq-postgresql #TODO: manageiq-postgresql-pvc
+    namespace: '{{ namespace }}'
+    state: present
+    access_modes:
+      - ReadWriteOnce
+    resources_requests:
+      storage: '{{ manage_iq_pg_volume_size }}'
+
+
+- name: create app service
+  k8s_v1_service:
+    name: manageiq-app
+    namespace: '{{ namespace }}'
+    labels:
+      app: manageiq-apb
+      service: manageiq-app
+    selector:
+      app: manageiq-apb
+      service: manageiq-app
+    ports:
+      - name: port-80
+        port: 80
+        target_port: 80
+      - name: port-443
+        port: 443
+        targetPort: 443
+
+
+- name: create memcached service
+  k8s_v1_service:
+    name: manageiq-memcached
+    namespace: '{{ namespace }}'
+    labels:
+      app: manageiq-apb
+      service: manageiq-memcached
+    selector:
+      app: manageiq-apb
+      service: manageiq-memcached
+    ports:
+      - name: port-11211
+        port: 11211
+        target_port: 11211
+
+
+- name: create postgresql service
+  k8s_v1_service:
+    name: manageiq-postgresql
+    namespace: '{{ namespace }}'
+    labels:
+      app: manageiq-apb
+      service: manageiq-postgresql
+    selector:
+      app: manageiq-apb
+      service: manageiq-postgresql
+    ports:
+      - name: port-5432
+        port: 5432
+        targetPort: 5432
+
+
+- name: create app route
+  openshift_v1_route:
+    name: manageiq-app
+    namespace: '{{ namespace }}'
+    spec_port_target_port: port-443
+    spec_tls_termination: passthrough
+    labels:
+      app: manageiq-apb
+      service: manageiq-app
+    to_name: manageiq-app
+
+
+- name: create app deployment config
+  openshift_v1_deployment_config:
+    name: manageiq-app
+    namespace: '{{ namespace }}'
+    labels:
+      app: manageiq-apb
+      service: manageiq-app
+    replicas: 1
+    selector:
+      app: manageiq-apb
+      service: manageiq-app
+    spec_template_metadata_labels:
+      app: manageiq-apb
+      service: manageiq-app
+    containers:
+      - env:
+          - name: MIQ_MEMCACHED_PORT_11211_TCP
+            value: "{{ manageiq_memcached_port_11211_tcp | string }}"
+          - name: DATABASE_SERVICE_NAME
+            value: "{{ database_service_name | string }}"
+          - name: MIQ_POSTGRESQL_PORT_5432_TCP_ADDR
+            value: "{{ manageiq_postgresql_5432_tcp_addr }}"
+          - name: MIQ_POSTGRESQL_PORT_5432_TCP
+            value: "{{ manageiq_postgresql_port_5432_tcp | string}}"
+          - name: DATABASE_REGION
+            value: "{{ database_region | string }}"
+          - name: MIQ_POSTGRESQL_SERVICE_HOST
+            value: "{{ manageiq_postgresql_service_host }}"
+          - name: MIQ_MEMCACHED_PORT_11211_TCP_ADDR
+            value: "{{ manageiq_memcached_port_11211_tcp_addr }}"
+          - name: POSTGRESQL_PASSWORD
+            value: "{{ postgresql_password }}"
+          - name: MEMCACHED_SERVICE_NAME
+            value: "{{ memcached_service_name }}"
+          - name: APPLICATION_INIT_DELAY
+            value: "{{ application_init_delay | string}}"
+          - name: MIQ_MEMCACHED_PORT
+            value: "{{ manageiq_memcached_port | string}}"
+          - name: MIQ_POSTGRESQL_PORT
+            value: "{{ manageiq_postgresql_port | string }}"
+          - name: MIQ_MEMCACHED_SERVICE_HOST
+            value: "{{ manageiq_memcached_service_host }}"
+          - name: POSTGRESQL_USER
+            value: "{{ postgresql_user }}"
+          - name: POSTGRESQL_DATABASE
+            value: "{{ postgresql_database }}"
+        image: docker.io/manageiq/manageiq-pods:app-latest-fine
+        name: manageiq-app
+        ports:
+        - container_port: 80
+          protocol: TCP
+        - container_port: 443
+          protocol: TCP
+        security_context:
+          privileged: true
+        termination_message_path: /dev/termination-log
+        volume_mounts:
+        - mount_path: /persistent
+          name: manageiq-app
+        working_dir: /
+    volumes:
+    - name: manageiq-app
+      persistent_volume_claim:
+        claim_name: manageiq-app
+    test: false
+    triggers:
+    - type: ConfigChange
+
+
+
+- name: create manageiq-memcached deployment config
+  openshift_v1_deployment_config:
+    name: manageiq-memcached
+    namespace: '{{ namespace }}'
+    labels:
+      app: manageiq-apb
+      service: manageiq-memcached
+    replicas: 1
+    selector:
+      app: manageiq-apb
+      service: manageiq-memcached
+    spec_template_metadata_labels:
+      app: manageiq-apb
+      service: manageiq-memcached
+    containers:
+      - env:
+          - name: MEMCACHED_MAX_MEMORY
+            value: '{{ memcached_max_memory | string}}'
+          - name: MEMCACHED_MAX_CONNECTIONS
+            value: '{{ memcached_max_connections | string}}'
+          - name: MEMCACHED_SLAB_PAGE_SIZE
+            value: '{{ memcached_slab_page_size | string}}'
+        image: docker.io/manageiq/manageiq-pods:memcached-latest
+        name: manageiq-memcached
+        ports:
+        - container_port: 11211
+          protocol: TCP
+        security_context:
+          privileged: true
+        termination_message_path: /dev/termination-log
+        working_dir: /
+    test: false
+    triggers:
+    - type: ConfigChange
+
+
+- name: create manageiq-postgresql deployment config
+  openshift_v1_deployment_config:
+    name: manageiq-postgresql
+    namespace: '{{ namespace }}'
+    labels:
+      app: manageiq-apb
+      service: manageiq-postgresql
+    replicas: 1
+    selector:
+      app: manageiq-apb
+      service: manageiq-postgresql
+    spec_template_metadata_labels:
+      app: manageiq-apb
+      service: manageiq-postgresql
+    strategy_type: Rolling
+    strategy_rolling_params:
+      interval_seconds: 1
+      max_surge: 25%
+      max_unavailable: 25%
+      timeout_seconds: 600
+      update_period_seconds: 1
+    containers:
+      - env:
+          - name: POSTGRESQL_PASSWORD
+            value: '{{ postgresql_password }}'
+          - name: POSTGRESQL_USER
+            value: '{{ postgresql_user }}'
+          - name: POSTGRESQL_DATABASE
+            value: '{{ postgresql_database }}'
+        image: docker.io/manageiq/manageiq-pods:app-latest-fine
+        name: manageiq-app
+        ports:
+        - container_port: 5432
+          protocol: TCP
+        security_context:
+          privileged: true
+        termination_message_path: /dev/termination-log
+        volume_mounts:
+        - mount_path: /var/lib/pgsql/data
+          name: manageiq-postgresql
+        working_dir: /
+    volumes:
+    - name: manageiq-postgresql
+      persistent_volume_claim:
+        claim_name: manageiq-postgresql
+    test: false
+    triggers:
+    - type: ConfigChange
