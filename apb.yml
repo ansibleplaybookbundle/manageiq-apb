@@ -9,7 +9,7 @@ metadata:
   imageUrl: "https://s3.amazonaws.com/fusor/2017demo/ManageIQ.png"
   documentationUrl: "https://manageiq.org/docs/"
   longDescription: "ManageIQ is an open source management platform for Hybrid IT. It can manage small and large environments, and supports multiple technologies such as virtual machines, public clouds and containers."
-  dependencies: ['docker.io/manageiq/manageiq-pods:app-latest-fine', 'docker.io/manageiq/manageiq-pods:memcached-latest, 'docker.io/manageiq/manageiq-pods:app-latest-fine']
+  dependencies: ['docker.io/manageiq/manageiq-pods:app-latest-fine', 'docker.io/manageiq/manageiq-pods:memcached-latest', 'docker.io/manageiq/manageiq-pods:app-latest-fine']
   providerDisplayName: "Red Hat, Inc."
 plans:
   - name: default
