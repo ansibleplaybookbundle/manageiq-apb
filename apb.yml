@@ -1,4 +1,4 @@
-id: ac5e71fe-b43d-4114-8172-640fd75b8ffd
+version: 1.0
 name: manageiq-apb
 image: ansibleplaybookbundle/manageiq-apb
 description: ManageIQ
