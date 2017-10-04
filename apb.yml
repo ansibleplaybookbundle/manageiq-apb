@@ -1,6 +1,5 @@
 version: 1.0
 name: manageiq-apb
-image: ansibleplaybookbundle/manageiq-apb
 description: ManageIQ
 bindable: False
 async: optional
