@@ -7,8 +7,33 @@ metadata:
   displayName: "ManageIQ (APB)"
   imageUrl: "https://s3.amazonaws.com/fusor/2017demo/ManageIQ.png"
   documentationUrl: "https://manageiq.org/docs/"
-  longDescription: "ManageIQ is an open source management platform for Hybrid IT. It can manage small and large environments, and supports multiple technologies such as virtual machines, public clouds and containers."
-  dependencies: ['docker.io/manageiq/manageiq-pods:app-latest-fine', 'docker.io/manageiq/manageiq-pods:memcached-latest', 'docker.io/manageiq/manageiq-pods:app-latest-fine']
+  longDescription: |
+                   ManageIQ is an open source management platform for Hybrid IT. It can manage small and large environments, and supports multiple technologies such as virtual machines, public clouds and containers.
+                   
+                   Note: An admin with sufficient privileges will need to modify the namespace permissions prior to running this APB.
+                   Replace MIQ_NAMESPACE in the export command below and run the following:
+                   export namespace=MIQ_NAMESPACE;
+                   oc adm policy add-scc-to-user anyuid system:serviceaccount:$namespace:miq-anyuid;
+                   oc adm policy add-scc-to-user anyuid system:serviceaccount:$namespace:miq-orchestrator;
+                   oc adm policy add-scc-to-user anyuid system:serviceaccount:$namespace:miq-httpd;
+                   oc adm policy add-scc-to-user privileged system:serviceaccount:$namespace:miq-privileged;
+                   oc adm policy add-scc-to-user privileged system:serviceaccount:$namespace:miq-httpd;
+                   echo "{\"kind\": \"RoleBinding\", \"apiVersion\": \"v1\", \"metadata\":
+                             { \"name\": \"view\", \"namespace\": \"$namespace\" }, \"subjects\":
+                             [{ \"kind\": \"ServiceAccount\", \"name\": \"miq-orchestrator\", \"namespace\": \"$namespace\" }],
+                             \"roleRef\": { \"name\": \"view\" } }"  | oc create -f -;
+                   echo "{\"kind\": \"RoleBinding\", \"apiVersion\": \"v1\", \"metadata\":
+                             { \"name\": \"edit\", \"namespace\": \"$namespace\" }, \"subjects\":
+                             [{ \"kind\": \"ServiceAccount\", \"name\": \"miq-orchestrator\", \"namespace\": \"$namespace\" }],
+                             \"roleRef\": { \"name\": \"edit\" } }"  | oc create -f -;
+
+  dependencies:
+    - 'docker.io/manageiq/manageiq-orchestrator:latest'
+    - 'docker.io/manageiq/httpd:latest'
+    - 'docker.io/carbonin/artemis:latest'
+    - 'docker.io/manageiq/memcached:latest'
+    - 'docker.io/manageiq/postgresql:latest'
+
   providerDisplayName: "Red Hat, Inc."
 plans:
   - name: default
@@ -19,59 +44,77 @@ plans:
       longDescription: This plan deploys ManageIQ
       cost: $0.00
     parameters:
-      - name: application_init_delay
-        title: web app time delay
-        description: Time to delay web app startup
-        type: int
-        default: 60
+      - name: manageiq_password
+        title: manageiq password
+        description: manageiq password
+        type: string
+        default: smartvm
+        required: true
       - name: database_region
         title: database region
         description: MIQ Instance Region
         type: int
         default: 1
-      - name: database_service_name
-        title: database service name
-        description: Service Name for the database
-        type: string
-        default: manageiq-postgresql
+        required: true
       - name: memcached_max_connections
         title: max connections
         description: Maximum number of connections memcached will accept
         type: int
         default: 1024
+        required: true
       - name: memcached_max_memory
         title: max memory
         description: Maximum memory memcached will use in MB
         type: int
         default: 64
+        required: true
       - name: memcached_slab_page_size
         title: slab page size
         description: Memcached Slab Size in bytes
         type: string
         default: 1M
-      - name: memcached_service_name
-        title: memcached service name
-        description: Service name of the memcached instance to use
-        type: string
-        default: manageiq-memcached
-      - name: namespace
-        title: namespace
-        description: Namespace/Project to deploy to
-        type: string
-        default: manageiq-apb
+        required: true
       - name: postgresql_database
         title: database name
         description: postgresql database name
         type: string
         default: vmdb_production
+        required: true
       - name: postgresql_password
         title: database password
         description: postgresql database password
         type: string
         default: admin
+        required: true
       - name: postgresql_user
         title: database username
         description: postgresql database username
         type: string
         default: admin
-#
+        required: true
+      - name: artemis_user
+        title: artemis user
+        description: artemis user
+        type: string
+        default: admin
+        required: true
+      - name: artemis_password
+        title: artemis password
+        description: artemis password
+        type: string
+        default: admin
+        required: true
+      - name: v2_key
+        title: v2 encryption key
+        description: v2 encryption key
+        default: uXfIgSAUq5Oz8goc/zI8HOOo0SI++Sd9mfpgBanYIM4=
+        type: string
+        required: true
+      - name: httpd_auth_type
+        default: 'internal'
+        enum: ['internal', 'external']
+        type: enum
+      - name: httpd_auth_kerberos_realms
+        description: Kerberos Realms for external authentication - WIP
+        default: ""
+        type: string
