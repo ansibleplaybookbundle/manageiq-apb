@@ -1,0 +1,17 @@
+---
+# defaults for manageiq-apb
+
+playbook_debug: no
+database_service_name: "postgresql"
+memcached_service_name: "memcached"
+manage_iq_app_volume_size: "1Gi"
+manage_iq_pg_volume_size: "1Gi"
+manage_iq_artemis_volume_size: "1Gi"
+application_mem_req: "6144Mi"
+application_cpu_req: "1000m"
+application_mem_limit: "16384Mi"
+#FIX ME
+guid: "01234567-0123-0123-0123-0123456789ab"
+httpd_config_dir: "/etc/httpd/conf.d"
+httpd_auth_config_dir: "/etc/httpd/auth-conf.d"
+httpd_auth_kerberos_realms: " "
